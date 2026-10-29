@@ -21,7 +21,7 @@ Python 3 is required for the local server. From this directory, run:
 python3 dev-server.py
 ```
 
-Open [http://localhost:8000](http://localhost:8000). The browser loads Supabase's JavaScript client from `esm.sh`, so an internet connection is required. The server rewrites `/list/<share-token>` requests to the app entry point so public share links work locally. For deployment, configure your static host to rewrite `/list/*` to `/index.html`.
+Open [http://localhost:8000](http://localhost:8000). The browser loads Supabase's JavaScript client from `esm.sh`, so an internet connection is required. The server rewrites `/list/<share-token>` requests to the app entry point so public share links work locally. Vercel deployments use `vercel.json` to rewrite extensionless routes to `/index.html` while leaving files such as `/styles.css` and `/app.js` untouched.
 
 ## Reservation privacy
 
