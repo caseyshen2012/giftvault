@@ -43,6 +43,11 @@ let session = null;
 let wishlist = null;
 let items = [];
 let contacts = [];
+let profile = null;
+let relationships = [];
+let friendWishlists = [];
+let friendSearchResult = null;
+let friendSetupError = "";
 let publicList = null;
 let shareToken = null;
 let authLoading = true;
@@ -56,6 +61,7 @@ const reservedInView = new Set();
 
 const currentUser = () => session?.user || null;
 const displayName = () => currentUser()?.user_metadata?.full_name || currentUser()?.email || "Your account";
+const realFriends = () => relationships.filter((relationship) => relationship.status === "accepted");
 const publicUrl = () => shareToken ? `${window.location.origin}/list/${shareToken}` : "";
 const routeShareToken = () => {
   const match = window.location.pathname.match(/^\/list\/([0-9a-f-]{36})\/?$/i);
@@ -86,7 +92,7 @@ function navMarkup(mobile = false) {
   }
   const links = [
     navLink("discover", "Discover", "home"),
-    navLink("friends", "Friends", "users", contacts.length),
+    navLink("friends", "Friends", "users", realFriends().length),
     navLink("search", "Search", "search"),
     navLink("wishlist", publicList ? "Shared list" : "My wishlist", "gift"),
     ...(!publicList ? [navLink("analytics", "Insights", "chart")] : []),
@@ -133,8 +139,8 @@ function renderDiscover() {
   const upcoming = contacts.filter((contact) => contact.birthday && daysUntil(contact.birthday) < 31).length;
   return `<div class="page">
     <section class="hero"><div class="hero-copy"><p class="eyebrow">A better kind of wishlist</p><h1>Keep good things<br /><span>in good company.</span></h1><p>Save what you love. Share it when you're ready. Let everyone else pick the perfect moment.</p><div class="hero-actions"><button class="button primary" data-action="navigate" data-page="wishlist">Open my wishlist ${icon("arrow", 14)}</button><button class="text-action" data-action="navigate" data-page="search">Browse saved ideas</button></div></div><div class="hero-visual"><div class="glass-orbit orbit-one"></div><div class="glass-orbit orbit-two"></div><div class="clay-object"><span class="clay-object-mark">${icon("box", 44)}</span></div><span class="visual-caption">THOUGHTFULLY<br />COLLECTED</span></div><div class="hero-index">01 — 04</div></section>
-    <section class="stats-row" aria-label="Your GiftVault at a glance"><div class="stat-card"><span class="stat-index">01</span><div><strong class="stat-value">${items.length}</strong><span class="stat-label">ideas saved</span></div></div><div class="stat-card"><span class="stat-index">02</span><div><strong class="stat-value">${contacts.length}</strong><span class="stat-label">friends added</span></div></div><div class="stat-card"><span class="stat-index">03</span><div><strong class="stat-value">${upcoming}</strong><span class="stat-label">birthdays soon</span></div></div></section>
-    <div class="content-grid"><section><div class="section-head"><div><p class="eyebrow">The collection</p><h2>Your wishlist</h2></div><button class="section-link" data-action="navigate" data-page="wishlist">See your list ${icon("arrow", 12)}</button></div><div class="wishlist-grid">${wishlistCard()}</div><div class="section-head"><div><p class="eyebrow">Recently saved</p><h2>Good things, gathered</h2></div><button class="section-link" data-action="navigate" data-page="wishlist">Browse all ${icon("arrow", 12)}</button></div><div class="item-list">${items.slice(-3).reverse().map((item) => itemRow(item, { compact: true })).join("") || emptyState("Nothing saved yet", "Add a product link to start your collection.", "Add an idea", "add-item")}</div></section><aside><div class="birthdays-card"><div class="section-head"><div><p class="eyebrow">On the calendar</p><h2>Upcoming birthdays</h2></div><button class="section-link" data-action="navigate" data-page="friends">See all</button></div>${birthdayRows()}</div><div class="section-head"><div><p class="eyebrow">Share a little delight</p><h2>Your people</h2></div><button class="section-link" data-action="navigate" data-page="friends">Add a friend ${icon("arrow", 12)}</button></div><div class="friend-mini-row"><span class="friend-total">${String(contacts.length).padStart(2, "0")}</span><span class="page-subtitle">${contacts.length ? "friends in your circle" : "your circle starts here"}</span></div><div class="guest-card"><span class="guest-card-index">A GIFT VAULT NOTE</span><p>Gift reservations help everyone avoid the double-wrap.</p><button class="text-action" data-action="${currentUser() ? "share-list" : "sign-in"}">${currentUser() ? "Copy your share link" : "Sign in to create your list"} ${icon("arrow", 12)}</button></div></aside></div>
+    <section class="stats-row" aria-label="Your GiftVault at a glance"><div class="stat-card"><span class="stat-index">01</span><div><strong class="stat-value">${items.length}</strong><span class="stat-label">ideas saved</span></div></div><div class="stat-card"><span class="stat-index">02</span><div><strong class="stat-value">${realFriends().length}</strong><span class="stat-label">friends connected</span></div></div><div class="stat-card"><span class="stat-index">03</span><div><strong class="stat-value">${upcoming}</strong><span class="stat-label">birthdays soon</span></div></div></section>
+    <div class="content-grid"><section><div class="section-head"><div><p class="eyebrow">The collection</p><h2>Your wishlist</h2></div><button class="section-link" data-action="navigate" data-page="wishlist">See your list ${icon("arrow", 12)}</button></div><div class="wishlist-grid">${wishlistCard()}</div><div class="section-head"><div><p class="eyebrow">Recently saved</p><h2>Good things, gathered</h2></div><button class="section-link" data-action="navigate" data-page="wishlist">Browse all ${icon("arrow", 12)}</button></div><div class="item-list">${items.slice(-3).reverse().map((item) => itemRow(item, { compact: true })).join("") || emptyState("Nothing saved yet", "Add a product link to start your collection.", "Add an idea", "add-item")}</div></section><aside><div class="birthdays-card"><div class="section-head"><div><p class="eyebrow">On the calendar</p><h2>Upcoming birthdays</h2></div><button class="section-link" data-action="navigate" data-page="friends">See all</button></div>${birthdayRows()}</div><div class="section-head"><div><p class="eyebrow">Share a little delight</p><h2>Your people</h2></div><button class="section-link" data-action="navigate" data-page="friends">Add a friend ${icon("arrow", 12)}</button></div><div class="friend-mini-row"><span class="friend-total">${String(realFriends().length).padStart(2, "0")}</span><span class="page-subtitle">${realFriends().length ? "friends connected" : "your circle starts here"}</span></div><div class="guest-card"><span class="guest-card-index">A GIFT VAULT NOTE</span><p>Gift reservations help everyone avoid the double-wrap.</p><button class="text-action" data-action="${currentUser() ? "share-list" : "sign-in"}">${currentUser() ? "Copy your share link" : "Sign in to create your list"} ${icon("arrow", 12)}</button></div></aside></div>
   </div>`;
 }
 
@@ -147,11 +153,51 @@ function itemRow(item) {
 
 function renderFriends() {
   const birthdays = contacts.filter((contact) => contact.birthday).sort((a, b) => daysUntil(a.birthday) - daysUntil(b.birthday));
-  return `<div class="page"><div class="page-heading"><div><p class="eyebrow">Your circle</p><h1>Friends & birthdays</h1><p class="page-subtitle">Add people you know to keep their important dates close.</p></div><button class="button primary" data-action="add-friend">${icon("plus", 15)} Add a friend</button></div><div class="section-head"><div><p class="eyebrow">People you added</p><h2>Your circle <span class="result-count">(${contacts.length})</span></h2></div></div><div class="people-grid">${contacts.map(personCard).join("") || emptyState("Your circle starts here", "Add a real contact to keep a birthday reminder. Contacts are private to your account.", "Add a friend", "add-friend")}</div><div class="section-head"><div><p class="eyebrow">A date to remember</p><h2>Coming up</h2></div><span class="result-count">${birthdays.length} birthdays saved</span></div><div class="birthdays-list">${birthdays.map((person) => `<article class="birthday-feature"><div class="birthday-date"><strong>${new Date(`${person.birthday}T12:00:00`).getDate()}</strong><span>${new Date(`${person.birthday}T12:00:00`).toLocaleDateString("en-US", { month: "short" }).toUpperCase()}</span></div>${avatar(person.name)}<div><h3>${escapeHtml(person.name)}</h3><p>${birthdayWhen(person.birthday)}</p></div></article>`).join("") || '<div class="quiet-empty">Add a birthday to your circle and it will appear here.</div>'}</div></div>`;
+  const incoming = relationships.filter((relationship) => relationship.status === "pending" && relationship.recipient_id === currentUser()?.id);
+  const outgoing = relationships.filter((relationship) => relationship.status === "pending" && relationship.requester_id === currentUser()?.id);
+  const friends = realFriends();
+  const searchResultMarkup = friendSearchResult ? friendSearchResult.error
+    ? `<div class="quiet-empty" role="status">${escapeHtml(friendSearchResult.error)}</div>`
+    : friendSearchResult.user ? friendSearchCard(friendSearchResult.user) : "" : "";
+  return `<div class="page"><div class="page-heading"><div><p class="eyebrow">Your circle</p><h1>Friends & birthdays</h1><p class="page-subtitle">Connect by username to see friends' wishlists and help avoid duplicate gifts.</p></div><button class="button primary" data-action="add-friend">${icon("plus", 15)} Add a friend</button></div>${friendSetupError ? `<div class="friend-setup-error" role="alert">${escapeHtml(friendSetupError)}</div>` : ""}
+    <form id="friend-search-form" class="friend-search"><label for="friend-username">Find someone by exact username</label><div class="search-panel">${icon("search", 17)}<input id="friend-username" name="username" required minlength="3" maxlength="24" pattern="[A-Za-z0-9_]+" autocomplete="off" placeholder="Their username" /><button class="button secondary small" type="submit">Search</button></div><p class="form-help">Usernames are public; email addresses are never shown.</p></form>${searchResultMarkup}
+    <div class="section-head"><div><p class="eyebrow">Requests</p><h2>Friend requests <span class="result-count">(${incoming.length})</span></h2></div></div>${incoming.length ? `<div class="people-grid">${incoming.map((relationship) => requestCard(relationship, "incoming")).join("")}</div>` : '<div class="quiet-empty">No incoming requests right now.</div>'}
+    ${outgoing.length ? `<div class="section-head"><div><p class="eyebrow">Awaiting a reply</p><h2>Sent requests</h2></div></div><div class="people-grid">${outgoing.map((relationship) => requestCard(relationship, "outgoing")).join("")}</div>` : ""}
+    <div class="section-head"><div><p class="eyebrow">Your connections</p><h2>Friends <span class="result-count">(${friends.length})</span></h2></div></div>${friends.length ? `<div class="friend-wishlists">${friendWishlists.map(friendWishlistCard).join("")}</div>` : '<div class="quiet-empty">No friends yet. Search for someone by their exact username to send a request.</div>'}
+    <div class="section-head"><div><p class="eyebrow">Birthday reminders</p><h2>Saved contacts <span class="result-count">(${contacts.length})</span></h2></div><button class="button secondary small" data-action="add-contact">${icon("plus", 12)} Add contact</button></div><div class="people-grid">${contacts.map(personCard).join("") || '<div class="quiet-empty">Add a private contact if you want to keep a birthday reminder here.</div>'}</div>
+    <div class="section-head"><div><p class="eyebrow">A date to remember</p><h2>Coming up</h2></div><span class="result-count">${birthdays.length} birthdays saved</span></div><div class="birthdays-list">${birthdays.map((person) => `<article class="birthday-feature"><div class="birthday-date"><strong>${new Date(`${person.birthday}T12:00:00`).getDate()}</strong><span>${new Date(`${person.birthday}T12:00:00`).toLocaleDateString("en-US", { month: "short" }).toUpperCase()}</span></div>${avatar(person.name)}<div><h3>${escapeHtml(person.name)}</h3><p>${birthdayWhen(person.birthday)}</p></div></article>`).join("") || '<div class="quiet-empty">Add a birthday to your saved contacts and it will appear here.</div>'}</div></div>`;
+}
+
+function friendSearchCard(user) {
+  const relationship = relationships.find((entry) => entry.other_user_id === user.user_id);
+  const isIncoming = relationship?.status === "pending" && relationship.recipient_id === currentUser()?.id;
+  const action = relationship?.status === "accepted" ? '<span class="badge">Friends</span>'
+    : isIncoming ? '<span class="badge">Request received</span>'
+      : relationship?.status === "pending" ? '<span class="badge">Request pending</span>'
+        : `<button class="button secondary small" data-action="send-friend-request" data-username="${escapeHtml(user.username)}">Send request</button>`;
+  return `<article class="person-card"><div class="person-top">${avatar(user.display_name || user.username)}<div><h3>${escapeHtml(user.display_name || user.username)}</h3><p class="handle">@${escapeHtml(user.username)}</p></div></div><div class="card-footer"><span>GIFTVAULT MEMBER</span>${action}</div></article>`;
+}
+
+function requestCard(relationship, direction) {
+  const actions = direction === "incoming"
+    ? `<button class="button primary small" data-action="respond-friend-request" data-request="${escapeHtml(relationship.relationship_id)}" data-accept="true">Accept</button><button class="button quiet small" data-action="respond-friend-request" data-request="${escapeHtml(relationship.relationship_id)}" data-accept="false">Decline</button>`
+    : '<span class="badge">Pending</span>';
+  return `<article class="person-card"><div class="person-top">${avatar(relationship.display_name || relationship.username)}<div><h3>${escapeHtml(relationship.display_name || relationship.username)}</h3><p class="handle">@${escapeHtml(relationship.username)}</p></div></div><div class="card-footer"><span>${direction === "incoming" ? "WANTS TO CONNECT" : "AWAITING REPLY"}</span><div class="friend-card-actions">${actions}</div></div></article>`;
+}
+
+function friendWishlistCard(friendList) {
+  const friend = friendList.profile;
+  const listItems = friendList.items;
+  return `<section class="friend-wishlist-card"><div class="friend-list-heading">${avatar(friend.display_name || friend.username)}<div><h3>${escapeHtml(friend.display_name || friend.username)}</h3><p class="handle">@${escapeHtml(friend.username)} · ${listItems.length} ${listItems.length === 1 ? "idea" : "ideas"}</p></div></div>${listItems.length ? `<div class="item-list">${listItems.map((item) => friendItemRow(item, friend.user_id)).join("")}</div>` : '<div class="quiet-empty">This friend has not added any wishlist ideas yet.</div>'}</section>`;
+}
+
+function friendItemRow(item, friendId) {
+  const externalUrl = safeUrl(item.url);
+  return `<article class="item-row"><span class="item-art ${escapeHtml(item.color || "cover-sage")}" aria-hidden="true">${escapeHtml((item.category || "G").slice(0, 1).toUpperCase())}</span><div class="item-info"><h3>${escapeHtml(item.title)}</h3>${externalUrl ? `<a href="${escapeHtml(externalUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.url)} ${icon("external", 10)}</a>` : ""}<span class="item-note">${escapeHtml(item.note || item.category || "Wishlist idea")}</span></div><div class="item-actions">${item.is_claimed ? '<span class="badge claimed">Claimed</span>' : `<button class="button secondary small" data-action="reserve-friend-item" data-item="${escapeHtml(item.id)}" data-friend="${escapeHtml(friendId)}">Reserve</button>`}</div></article>`;
 }
 
 function personCard(person) {
-  return `<article class="person-card"><div class="person-top">${avatar(person.name)}<div><h3>${escapeHtml(person.name)}</h3><p class="handle">${escapeHtml(person.location || "Private contact")}</p></div></div><div class="person-meta"><span>${person.birthday ? "Birthday" : "Added"}</span><strong>${person.birthday ? new Date(`${person.birthday}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : new Date(person.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</strong></div><div class="card-footer"><span>PRIVATE CONTACT</span><button class="button danger small" data-action="remove-friend" data-user="${escapeHtml(person.id)}">Remove</button></div></article>`;
+  return `<article class="person-card"><div class="person-top">${avatar(person.name)}<div><h3>${escapeHtml(person.name)}</h3><p class="handle">${escapeHtml(person.location || "Private contact")}</p></div></div><div class="person-meta"><span>${person.birthday ? "Birthday" : "Added"}</span><strong>${person.birthday ? new Date(`${person.birthday}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : new Date(person.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</strong></div><div class="card-footer"><span>PRIVATE CONTACT</span><button class="button danger small" data-action="remove-contact" data-user="${escapeHtml(person.id)}">Remove</button></div></article>`;
 }
 
 function renderSearch() {
@@ -166,7 +212,7 @@ function renderSearch() {
 function renderWishlist() {
   if (publicList) return renderProfile();
   const reservedCount = reservedInView.size;
-  return `<div class="page"><div class="page-heading"><div><p class="eyebrow">Your collection / private preview</p><h1>My wishlist</h1><p class="page-subtitle">Keep the things you love in one easy place. Share a public link when someone asks what you'd like.</p></div><button class="button primary" data-action="add-item">${icon("plus", 15)} Add an idea</button></div><section class="account-card">${avatar(displayName(), "large")}<div class="account-meta"><h2>Your wishlist</h2><p>SYNCED TO YOUR ACCOUNT · ${items.length} ${items.length === 1 ? "idea" : "ideas"}</p></div><button class="button secondary small" data-action="share-list">${icon("copy", 13)} Copy share link</button></section><div class="share-panel"><div><span class="eyebrow">PUBLIC SHARE LINK</span><p>${escapeHtml(publicUrl() || "Create your wishlist to generate a share link.")}</p></div><button class="button secondary small" data-action="share-list">Copy link</button></div><div class="tab-row"><button class="tab-button ${accountTab === "wishlist" ? "active" : ""}" data-action="account-tab" data-tab="wishlist">All ideas (${items.length})</button><button class="tab-button ${accountTab === "claimed" ? "active" : ""}" data-action="account-tab" data-tab="claimed">Reservations sent (${reservedCount})</button></div><div class="item-list">${items.map((item) => itemRow(item)).join("") || emptyState("Your list is a blank page", "Add a product link to start a collection that feels like you.", "Add your first idea", "add-item")}</div><p class="demo-note" style="margin-top:17px">Reservation details are private by database policy. This owner view cannot read or display reservations.</p></div>`;
+  return `<div class="page"><div class="page-heading"><div><p class="eyebrow">Your collection / private preview</p><h1>My wishlist</h1><p class="page-subtitle">Keep the things you love in one easy place. Share a public link when someone asks what you'd like.</p></div><button class="button primary" data-action="add-item">${icon("plus", 15)} Add an idea</button></div><section class="account-card">${avatar(displayName(), "large")}<div class="account-meta"><h2>Your wishlist</h2><p>SYNCED TO YOUR ACCOUNT · ${items.length} ${items.length === 1 ? "idea" : "ideas"}</p></div><button class="button secondary small" data-action="share-list">${icon("copy", 13)} Copy share link</button></section><div class="account-card username-card"><div class="account-meta"><h2>Your username</h2><p>@${escapeHtml(profile?.username || "not set")} · Friends can find you by this exact username.</p></div><button class="button secondary small" data-action="edit-username">Edit username</button></div><div class="share-panel"><div><span class="eyebrow">PUBLIC SHARE LINK</span><p>${escapeHtml(publicUrl() || "Create your wishlist to generate a share link.")}</p></div><button class="button secondary small" data-action="share-list">Copy link</button></div><div class="tab-row"><button class="tab-button ${accountTab === "wishlist" ? "active" : ""}" data-action="account-tab" data-tab="wishlist">All ideas (${items.length})</button><button class="tab-button ${accountTab === "claimed" ? "active" : ""}" data-action="account-tab" data-tab="claimed">Reservations sent (${reservedCount})</button></div><div class="item-list">${items.map((item) => itemRow(item)).join("") || emptyState("Your list is a blank page", "Add a product link to start a collection that feels like you.", "Add your first idea", "add-item")}</div><p class="demo-note" style="margin-top:17px">Reservation details are private by database policy. This owner view cannot read or display reservations.</p></div>`;
 }
 
 function renderProfile() {
@@ -179,7 +225,7 @@ function renderAnalytics() {
   const counts = {};
   items.forEach((item) => { counts[item.category] = (counts[item.category] || 0) + 1; });
   const categories = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-  return `<div class="page"><div class="page-heading"><div><p class="eyebrow">Your account / insights</p><h1>Your vault, at a glance.</h1><p class="page-subtitle">A private overview of the wishlist data saved to your account.</p></div><span class="badge">${icon("chart", 11)} PRIVATE</span></div><div class="analytics-grid"><article class="analytics-card"><span class="stat-label">Wishlist ideas</span><strong class="stat-value">${items.length}</strong><p class="trend">Synced to your account</p></article><article class="analytics-card"><span class="stat-label">Contacts</span><strong class="stat-value">${contacts.length}</strong><p class="trend">Private to your account</p></article><article class="analytics-card"><span class="stat-label">Share link</span><strong class="stat-value">${shareToken ? "Active" : "—"}</strong><p class="trend">Public list · private reservations</p></article></div><div class="analytics-lower"><section class="analytics-panel"><h2>Ideas by category</h2>${categories.map(([name, count]) => `<div class="bar-row"><span>${escapeHtml(name)}</span><div class="bar-track"><div class="bar-fill" style="width:${Math.round(count / Math.max(...categories.map((entry) => entry[1])) * 100)}%"></div></div><strong>${count}</strong></div>`).join("") || '<div class="quiet-empty">Categories appear when you save ideas.</div>'}</section><section class="analytics-panel"><h2>Data & privacy</h2><p class="analytics-copy">Your wishlist and contacts are stored in Supabase and protected by account-level Row Level Security. Reservation rows are not readable by the browser client.</p></section></div></div>`;
+  return `<div class="page"><div class="page-heading"><div><p class="eyebrow">Your account / insights</p><h1>Your vault, at a glance.</h1><p class="page-subtitle">A private overview of the wishlist data saved to your account.</p></div><span class="badge">${icon("chart", 11)} PRIVATE</span></div><div class="analytics-grid"><article class="analytics-card"><span class="stat-label">Wishlist ideas</span><strong class="stat-value">${items.length}</strong><p class="trend">Synced to your account</p></article><article class="analytics-card"><span class="stat-label">Friends</span><strong class="stat-value">${realFriends().length}</strong><p class="trend">Connected accounts</p></article><article class="analytics-card"><span class="stat-label">Share link</span><strong class="stat-value">${shareToken ? "Active" : "—"}</strong><p class="trend">Public list · private reservations</p></article></div><div class="analytics-lower"><section class="analytics-panel"><h2>Ideas by category</h2>${categories.map(([name, count]) => `<div class="bar-row"><span>${escapeHtml(name)}</span><div class="bar-track"><div class="bar-fill" style="width:${Math.round(count / Math.max(...categories.map((entry) => entry[1])) * 100)}%"></div></div><strong>${count}</strong></div>`).join("") || '<div class="quiet-empty">Categories appear when you save ideas.</div>'}</section><section class="analytics-panel"><h2>Data & privacy</h2><p class="analytics-copy">Your wishlist and contacts are stored in Supabase and protected by account-level Row Level Security. Reservation rows are not readable by the browser client.</p></section></div></div>`;
 }
 
 function renderAuth() {
@@ -250,7 +296,7 @@ function openAccountMenu() {
     render();
     return;
   }
-  showModal(`<div class="modal-head"><div><p class="eyebrow">Your account</p><h2>${escapeHtml(displayName())}</h2><p>${escapeHtml(currentUser().email || "")}</p></div><button class="icon-button" data-action="close-modal" aria-label="Close">${icon("close", 16)}</button></div><div class="account-choice">${avatar(displayName())}<span><strong>Signed in securely</strong><small>Wishlist and contacts sync with Supabase</small></span></div><div class="modal-actions"><button class="button quiet" data-action="sign-out">${icon("logout", 14)} Sign out</button><button class="button primary" data-action="close-modal">Done</button></div>`);
+  showModal(`<div class="modal-head"><div><p class="eyebrow">Your account</p><h2>${escapeHtml(displayName())}</h2><p>${escapeHtml(currentUser().email || "")}</p></div><button class="icon-button" data-action="close-modal" aria-label="Close">${icon("close", 16)}</button></div><div class="account-choice">${avatar(displayName())}<span><strong>Signed in securely</strong><small>Wishlist and contacts sync with Supabase</small></span></div><div class="account-choice"><span><strong>@${escapeHtml(profile?.username || "username not set")}</strong><small>Friends can search this exact username</small></span><button class="button secondary small" data-action="edit-username">Edit username</button></div><div class="modal-actions"><button class="button quiet" data-action="sign-out">${icon("logout", 14)} Sign out</button><button class="button primary" data-action="close-modal">Done</button></div>`);
 }
 
 function openAddItem(item = null) {
@@ -260,7 +306,18 @@ function openAddItem(item = null) {
 }
 
 function openAddFriend() {
-  showModal(`<div class="modal-head"><div><p class="eyebrow">Your circle</p><h2>Add someone you know</h2><p>Save a real contact and optional birthday to your account.</p></div><button class="icon-button" data-action="close-modal" aria-label="Close">${icon("close", 16)}</button></div><form id="friend-form"><div class="form-field"><label for="friend-name">Name</label><input id="friend-name" name="name" required maxlength="80" placeholder="Friend's name" /></div><div class="form-field"><label for="friend-birthday">Birthday <span class="form-help">(optional)</span></label><input id="friend-birthday" name="birthday" type="date" /></div><div class="form-field"><label for="friend-location">City <span class="form-help">(optional)</span></label><input id="friend-location" name="location" maxlength="80" placeholder="City, country" /></div><div class="modal-actions"><button type="button" class="button quiet" data-action="close-modal">Cancel</button><button type="submit" class="button primary">Add contact</button></div></form>`);
+  page = "friends";
+  friendSearchResult = null;
+  render();
+  document.getElementById("friend-username")?.focus();
+}
+
+function openAddContact() {
+  showModal(`<div class="modal-head"><div><p class="eyebrow">Birthday reminders</p><h2>Add a private contact</h2><p>Keep a name and optional birthday in your personal account.</p></div><button class="icon-button" data-action="close-modal" aria-label="Close">${icon("close", 16)}</button></div><form id="friend-form"><div class="form-field"><label for="friend-name">Name</label><input id="friend-name" name="name" required maxlength="80" placeholder="Contact name" /></div><div class="form-field"><label for="friend-birthday">Birthday <span class="form-help">(optional)</span></label><input id="friend-birthday" name="birthday" type="date" /></div><div class="form-field"><label for="friend-location">City <span class="form-help">(optional)</span></label><input id="friend-location" name="location" maxlength="80" placeholder="City, country" /></div><div class="modal-actions"><button type="button" class="button quiet" data-action="close-modal">Cancel</button><button type="submit" class="button primary">Add contact</button></div></form>`);
+}
+
+function openUsernameEditor() {
+  showModal(`<div class="modal-head"><div><p class="eyebrow">Your public profile</p><h2>Choose a username</h2><p>Friends use your exact username to find and connect with you. Your email stays private.</p></div><button class="icon-button" data-action="close-modal" aria-label="Close">${icon("close", 16)}</button></div><form id="username-form"><div class="form-field"><label for="profile-username">Username</label><input id="profile-username" name="username" required minlength="3" maxlength="24" pattern="[a-zA-Z0-9_]+" autocomplete="username" value="${escapeHtml(profile?.username || "")}" /><span class="form-help">3–24 letters, numbers, or underscores.</span></div><p class="auth-error" id="username-error" role="alert"></p><div class="modal-actions"><button type="button" class="button quiet" data-action="close-modal">Cancel</button><button type="submit" class="button primary">Save username</button></div></form>`);
 }
 
 function openReserve(itemId) {
@@ -291,14 +348,56 @@ async function loadOwnedData() {
     wishlist = list;
   }
   shareToken = wishlist.share_token;
-  const [itemsResult, contactsResult] = await Promise.all([
+  const [itemsResult, contactsResult, profileResult, relationshipsResult] = await Promise.all([
     supabase.from("wishlist_items").select("id,wishlist_id,title,url,category,note,sort_order,created_at").eq("wishlist_id", wishlist.id).order("sort_order").order("created_at"),
     supabase.from("contacts").select("id,name,birthday,location,created_at").order("name"),
+    supabase.rpc("get_my_profile"),
+    supabase.rpc("get_friend_relationships"),
   ]);
   if (itemsResult.error) throw itemsResult.error;
   if (contactsResult.error) throw contactsResult.error;
   items = itemsResult.data || [];
   contacts = contactsResult.data || [];
+  friendSetupError = "";
+  if (profileResult.error || relationshipsResult.error) {
+    profile = null;
+    relationships = [];
+    friendWishlists = [];
+    friendSetupError = "Friend connections are not set up yet. In Supabase, run supabase/friends-migration.sql from SQL Editor → New query.";
+    return;
+  }
+  profile = profileResult.data?.[0] || null;
+  relationships = relationshipsResult.data || [];
+  const acceptedFriends = realFriends();
+  const friendResults = await Promise.all(acceptedFriends.map(async (relationship) => {
+    const { data, error } = await supabase.rpc("get_friend_wishlist", { p_friend_id: relationship.other_user_id });
+    if (error) return { error };
+    const rows = data || [];
+    const friend = rows[0] ? {
+      user_id: rows[0].friend_id,
+      username: rows[0].username,
+      display_name: rows[0].display_name,
+    } : {
+      user_id: relationship.other_user_id,
+      username: relationship.username,
+      display_name: relationship.display_name,
+    };
+    const friendItems = rows.filter((row) => row.item_id).map((row) => ({
+      id: row.item_id,
+      title: row.item_title,
+      url: row.item_url,
+      category: row.category,
+      note: row.note,
+      sort_order: row.sort_order,
+      created_at: row.created_at,
+      is_claimed: row.is_claimed,
+    }));
+    return { profile: friend, items: friendItems };
+  }));
+  friendSetupError = friendResults.some((result) => result.error)
+    ? "Could not load one or more friends' wishlists. Please retry; access is restricted to accepted friends."
+    : "";
+  friendWishlists = friendResults.filter((result) => !result.error);
 }
 
 async function loadPublicList(token) {
@@ -328,6 +427,7 @@ async function loadPublicList(token) {
 async function refreshData() {
   authLoading = true;
   loadError = "";
+  friendSetupError = "";
   render();
   try {
     if (shareToken && window.location.pathname.startsWith("/list/")) {
@@ -370,7 +470,14 @@ async function submitAuth(event) {
   const submitButton = form.querySelector('[type="submit"]');
   submitButton.disabled = true;
   try {
-    if (authMode === "signup") {
+    if (authMode === "recovery") {
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) throw error;
+      window.history.replaceState(null, "", window.location.pathname);
+      authMode = "login";
+      toast("Password updated. You can sign in with your new password.");
+      render();
+    } else if (authMode === "signup") {
       const name = String(values.get("name") || "").trim();
       const { data: result, error } = await supabase.auth.signUp({
         email,
@@ -383,13 +490,6 @@ async function submitAuth(event) {
       if (error) throw error;
       if (!result.session) {
         errorElement.textContent = "Check your email for a confirmation link, then return here to sign in.";
-      } else if (authMode === "recovery") {
-        const { error } = await supabase.auth.updateUser({ password });
-        if (error) throw error;
-        window.history.replaceState(null, "", window.location.pathname);
-        authMode = "login";
-        toast("Password updated. You can sign in with your new password.");
-        render();
       } else {
         toast("Account created. Your wishlist is ready.");
       }
@@ -460,6 +560,86 @@ async function submitContact(event) {
   toast(`${name} added to your circle.`);
 }
 
+async function submitFriendSearch(event) {
+  event.preventDefault();
+  const username = String(new FormData(event.target).get("username") || "").trim().toLowerCase();
+  friendSearchResult = null;
+  render();
+  const { data, error } = await supabase.rpc("search_profile_by_username", { p_username: username });
+  if (error) {
+    console.error("Could not search for a GiftVault username.", error);
+    friendSearchResult = { error: "Could not search right now. Please try again." };
+  } else if (!data?.length) {
+    friendSearchResult = { error: "Username not found. Check the spelling and try again." };
+  } else {
+    friendSearchResult = { user: data[0] };
+  }
+  render();
+}
+
+async function submitUsername(event) {
+  event.preventDefault();
+  const username = String(new FormData(event.target).get("username") || "").trim().toLowerCase();
+  const errorElement = document.getElementById("username-error");
+  if (!/^[a-z0-9][a-z0-9_]{2,23}$/.test(username)) {
+    errorElement.textContent = "Use 3–24 letters, numbers, or underscores; start with a letter or number.";
+    return;
+  }
+  const { data, error } = await supabase.from("profiles")
+    .update({ username })
+    .eq("user_id", currentUser().id)
+    .select("user_id,username,display_name")
+    .single();
+  if (error) {
+    errorElement.textContent = error.code === "23505" ? "That username is already taken." : error.message || "Could not update your username.";
+    return;
+  }
+  profile = data;
+  closeModal();
+  render();
+  toast("Username updated.");
+}
+
+async function sendFriendRequest(username) {
+  const { error } = await supabase.rpc("send_friend_request", { p_username: username });
+  if (error) {
+    toast(error.message || "Could not send this friend request.");
+    return;
+  }
+  friendSearchResult = null;
+  await refreshData();
+  page = "friends";
+  render();
+  toast("Friend request sent.");
+}
+
+async function respondToFriendRequest(requestId, accept) {
+  const { error } = await supabase.rpc("respond_to_friend_request", {
+    p_request_id: requestId,
+    p_accept: accept,
+  });
+  if (error) {
+    toast(error.message || "Could not update this friend request.");
+    return;
+  }
+  await refreshData();
+  page = "friends";
+  render();
+  toast(accept ? "Friend request accepted." : "Friend request declined.");
+}
+
+async function reserveFriendItem(itemId) {
+  const { error } = await supabase.rpc("reserve_friend_wishlist_item", { p_item_id: itemId });
+  if (error) {
+    toast(error.message || "Could not reserve this gift.");
+    return;
+  }
+  await refreshData();
+  page = "friends";
+  render();
+  toast("Reserved. Your friends will see this item as claimed.");
+}
+
 async function submitReservation(event) {
   event.preventDefault();
   if (!shareToken || !publicList) return;
@@ -504,6 +684,12 @@ async function handleAction(button) {
   else if (action === "close-modal") closeModal();
   else if (action === "auth-mode") setAuthMode(button.dataset.mode);
   else if (action === "add-item") openAddItem();
+  else if (action === "add-friend") openAddFriend();
+  else if (action === "add-contact") openAddContact();
+  else if (action === "edit-username") openUsernameEditor();
+  else if (action === "send-friend-request") await sendFriendRequest(button.dataset.username);
+  else if (action === "respond-friend-request") await respondToFriendRequest(button.dataset.request, button.dataset.accept === "true");
+  else if (action === "reserve-friend-item") await reserveFriendItem(button.dataset.item);
   else if (action === "edit-item") openAddItem(items.find((item) => item.id === button.dataset.item));
   else if (action === "delete-item") {
     const item = items.find((entry) => entry.id === button.dataset.item);
@@ -519,7 +705,7 @@ async function handleAction(button) {
       toast("Idea removed from your wishlist.");
     }
   } else if (action === "reserve") openReserve(button.dataset.item);
-  else if (action === "remove-friend") {
+  else if (action === "remove-contact") {
     const { error } = await supabase.from("contacts").delete().eq("id", button.dataset.user);
     if (error) {
       toast(`Could not remove this contact: ${error.message}`);
@@ -564,6 +750,8 @@ document.addEventListener("submit", (event) => {
   if (event.target.id === "auth-form") void submitAuth(event);
   else if (event.target.id === "item-form") void submitItem(event);
   else if (event.target.id === "friend-form") void submitContact(event);
+  else if (event.target.id === "friend-search-form") void submitFriendSearch(event);
+  else if (event.target.id === "username-form") void submitUsername(event);
   else if (event.target.id === "reserve-form") void submitReservation(event);
 });
 

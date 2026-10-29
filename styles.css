@@ -153,6 +153,20 @@ h1 { margin-bottom: 11px; font-size: clamp(29px, 4vw, 43px); font-weight: 700; l
 .person-card .handle { margin: 3px 0 0; color: #929b94; font-size: 9px; }
 .person-meta { display: flex; align-items: center; justify-content: space-between; margin: 14px 0 12px; color: #858f87; font-size: 9px; }
 .person-meta strong { color: #4f6255; }
+.friend-search { max-width: 620px; margin: 0 0 22px; }
+.friend-search > label { display: block; margin-bottom: 7px; color: #56665a; font-size: 10px; font-weight: 700; }
+.friend-search .search-panel { margin-bottom: 5px; padding: 9px 11px; }
+.friend-search .search-panel input { flex: 1; min-width: 0; }
+.friend-search .search-panel .button { flex: 0 0 auto; }
+.friend-search .form-help { display: block; }
+.friend-setup-error { max-width: 700px; margin: 0 0 18px; padding: 11px 13px; border: 1px solid rgba(151,94,83,.2); border-radius: 8px; color: #82564e; background: rgba(246,225,218,.42); font-size: 10px; line-height: 1.6; }
+.friend-wishlists { display: grid; gap: 14px; }
+.friend-wishlist-card { padding: 16px; border: 1px solid rgba(255,255,255,.86); border-radius: 12px; background: rgba(250,251,248,.46); box-shadow: 4px 6px 14px rgba(43,63,49,.055), inset 1px 1px 2px white; backdrop-filter: blur(12px); }
+.friend-list-heading { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.friend-list-heading h3 { margin: 0; font-size: 12px; }
+.friend-list-heading .handle { margin: 3px 0 0; color: #929b94; font-size: 9px; }
+.friend-card-actions { display: flex; align-items: center; gap: 6px; }
+.username-card { margin-top: -7px; }
 .birthdays-list { display: grid; grid-template-columns: repeat(2,1fr); gap: 11px; }
 .birthday-feature { display: flex; align-items: center; gap: 13px; padding: 16px; border: 1px solid rgba(255,255,255,.85); border-radius: 11px; background: rgba(250,251,248,.45); box-shadow: 4px 5px 12px rgba(43,63,49,.05), inset 1px 1px 2px white; }
 .birthday-feature .birthday-date { width: 44px; height: 46px; }
